@@ -1,25 +1,90 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+Repdata
+==========================================
+
+## Load data and libraries
+```{r load, results = "hide"}
+activity <- read.csv("activity.csv")
+library(dplyr)
+library(ggplot2)
+```
 
 
-## Loading and preprocessing the data
+## total number of steps taken per day
 
+#### histogram of total number of steps per day
+``` {r hist}
+unique(activity$date)
+totalsteps <- activity %>% group_by(date) %>% summarise(total = sum(steps, na.rm = TRUE))
+totalsteps
+ggplot(totalsteps, aes(total)) + geom_histogram(binwidth = 2500, fill = blues9) + xlab("Total number of steps per day") + ylab("count of total number of steps per day") + ggtitle("Histogram of steps per day")
+```  
 
+#### mean and median number of total number of steps taken per day
+``` {r mean and median}
+mean(totalsteps$total, na.rm = TRUE)
+median(totalsteps$total, na.rm = TRUE)
+```
 
-## What is mean total number of steps taken per day?
-
-
-
-## What is the average daily activity pattern?
-
-
-
+## Average daily pattern
+```{r tsplot}
+avesteps <- activity %>% group_by(interval) %>% summarise(average = mean(steps, na.rm = TRUE))
+avesteps$interval <- (avesteps$interval)*100
+ggplot(avesteps, aes(x= interval, y = average)) + geom_line(color = "steelblue", size = 1, alpha = 0.8)  
+avesteps[which.max(avesteps$average),] #maximum number of steps lies at interval 8.35
+```
 ## Imputing missing values
 
+##### number of NA values in activity dataset
+```{r missing}
+colSums(is.na(activity)) 
+```
+
+#### replace missing values
+NA values will be replaced by the average number of steps in the 5 minute interval
+Create a new column complete_steps with all NA values replaced
+```{r na}
+activity$Complete_steps <- ifelse(is.na(activity$steps), round(avesteps$average[match(activity$interval, avesteps$interval)],0), activity$steps)
+#merge 2 columns complete_steps and steps in the activity dataset
+Finalactivity <- data.frame(steps = activity$Complete_steps, interval = activity$interval, date = activity$date)
+head(Finalactivity, n = 5) #first 5 rows of new activity data
+
+```
+
+#### Histogram of total number of steps 
+``` {r final}
+Finalactivity_total <- Finalactivity %>% group_by(date) %>% summarise(total = sum(steps, na.rm = TRUE))
+ggplot(Finalactivity_total, aes(total)) + geom_histogram(binwidth = 2500, fill = blues9)
+
+```
+
+#### mean and median total number of steps per day
+``` {r}
+mean(Finalactivity_total$total)
+median(Finalactivity_total$total)
+# there is not much impact on the mean and median.
+```
 
 
-## Are there differences in activity patterns between weekdays and weekends?
+## Differences in activity patterns between weekdays and weekends
+
+``` {r}
+library(lubridate)
+activity$date <- as.Date(activity$date)
+activity$day <- weekdays(activity$date)
+unique(activity$day)
+activity$daytype <- ifelse(activity$day == "Saturday" | activity$day == "Sunday",'Weekend','Weekday')
+unique(activity$daytype)
+
+activity_grouped <- activity %>% group_by(daytype, interval) %>% summarise(ave = mean(steps, na.rm = TRUE))
+
+ggplot(activity_grouped, aes(x = interval, y = ave)) + geom_line(color = "steelblue") + facet_grid(daytype ~.) + ylab("average number of steps")
+
+
+```
+
+
+
+
+
+
+
